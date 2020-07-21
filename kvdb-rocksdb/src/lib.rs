@@ -593,6 +593,24 @@ impl Database {
 		optional.into_iter().flat_map(identity)
 	}
 
+	/// Iterator over data in the 'col' database column.
+	/// A tailing iterator is able to read new data added to the database 
+	/// since the start of iteration.
+	/// Will hold a lock until the iterator is dropped
+	/// preventing the database from being closed.
+	pub fn iter_tailing<'a>(&'a self, col: u32) -> impl Iterator<Item = iter::KeyValuePair> +'a {
+		let read_lock = self.db.read();
+		let optional = if read_lock.is_some() {
+			let mut read_opts = generate_read_options();
+			read_opts.set_tailing(true);
+			let guarded = iter::ReadGuardedIterator::new(read_lock, col, read_opts);
+			Some(guarded)
+		} else {
+			None
+		};
+		optional.into_iter().flat_map(identity)
+	}
+
 	/// Close the database
 	fn close(&self) {
 		*self.db.write() = None;
